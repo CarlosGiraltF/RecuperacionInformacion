@@ -99,7 +99,7 @@ class Evaluation:
     
     #def recall(self, info_id: int, results: Results, k: int = None) -> float:
        # return self.tp(info_id, results, k)/(self.tp(info_id, results, k)+self.fn(info_id, results, k))
-    def recall(self, info_id, results: Results, at_index):
+    def recall(self, info_id, results: Results, at_index) -> float:
         relevant_docs = self.information_needs[info_id].get_relevant_documents()
         retrieved_docs = results.get_documents_from_infoNeed(info_id)[:at_index]  # Considerar los primeros 'at_index' documentos
         
@@ -118,6 +118,8 @@ class Evaluation:
     def f1(self, info_id: str, results: Results) -> float:
         P = self.precision(info_id, results)
         R = self.recall(info_id, results,len(results.get_documents_from_infoNeed(info_id)))
+        print(str(P) + "\n")
+        print(str(R) + "\n")
         return (2 * P * R) / (P + R)
     
     def prec10(self, info_id: str, results: Results) -> float:
@@ -188,7 +190,7 @@ class Evaluation:
                 #print(f"Doc: {doc} | Precision: {precision:.3f} | Recall: {recall:.3f}")
         
         # Lista de recalls estándar donde interpolaremos las precisiones
-        recall_levels = [i / 10.0 for i in range(11)]
+        recall_levels = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
         
         # Aplicamos la interpolación de precisión para cada nivel de recall estándar
         interpolated_precisions = []
@@ -204,11 +206,6 @@ class Evaluation:
         
         return recall_levels, interpolated_precisions
     
-
-
-
-
-
 
 if __name__ == '__main__':
     i = 1
@@ -239,15 +236,23 @@ if __name__ == '__main__':
         print(f"{key}: {value}")
     
     results = Results()
+    processed_queries = {}
+
     with open(resultsFileName, 'r') as Resultsfile:
         for line in Resultsfile:
-            # Saltar líneas en blanco
+            # Skip empty lines
             if line.strip():
-                # Dividir la línea por tabuladores y convertir a enteros
+                # Split the line by tabs to extract information_need and document_id
                 information_need, document_id = line.strip().split('\t')
-                # Añadir los datos a la lista
-                #print(f"Loading result: Need ID: {information_need}, Document ID: {document_id}")
-                results.add_result(information_need, document_id)
+                
+                # Initialize the counter for this information_need if it doesn't exist
+                if information_need not in processed_queries:
+                    processed_queries[information_need] = 0
+                
+                # Only process the first 45 lines for each information_need
+                if processed_queries[information_need] < 45:
+                    results.add_result(information_need, document_id)
+                    processed_queries[information_need] += 1
 
 
     with open(outputFileName, 'w') as Outputfile:
@@ -267,7 +272,7 @@ if __name__ == '__main__':
             
             precision = evaluation.precision(infoNeed, results)
             recall = evaluation.recall(infoNeed, results, len(results.get_documents_from_infoNeed(infoNeed)))
-            f1 = evaluation.f1(infoNeed, results)
+            f1 = (2.0*precision*recall)/(precision+recall)
             prec_at_10 = evaluation.prec10(infoNeed, results)
             average_precision = evaluation.average_precision(infoNeed, results)
             
@@ -308,7 +313,7 @@ if __name__ == '__main__':
         # Calculamos las métricas totales
         total_avg_precision = total_precision / num_queries if num_queries else 0
         total_avg_recall = total_recall / num_queries if num_queries else 0
-        total_avg_f1 = total_f1 / num_queries if num_queries else 0
+        total_avg_f1 = ((2.0*total_precision*total_recall)/(total_precision + total_recall))/num_queries if num_queries else 0
         total_avg_prec_at_10 = total_prec_at_10 / num_queries if num_queries else 0
         total_avg_ap = total_ap / num_queries if num_queries else 0
         interpolated_avg_precisions = [p / num_queries for p in all_interpolated_precisions]
