@@ -10,7 +10,7 @@ Usage: python3 evaluation.py -qrels <qrelsFileName> -results <resultsFileName> -
 """
 
 import sys
-import matplotlib . pyplot as plt
+import matplotlib.pyplot as plt
 import numpy as np
 
 class InformationNeed:
@@ -44,7 +44,7 @@ class Results:
         return list(self.information_needs[need_id])
         #return list(self.relevant_documents.keys())
     
-    def get_relevant_documents_from_infoNeed(self, need_id: int, infoNeed: InformationNeed):
+    def get_relevant_documents_from_infoNeed(self, need_id: str, infoNeed: InformationNeed):
         res = []
         for doc in self.get_documents_from_infoNeed(need_id):
             if doc in infoNeed.get_relevant_documents():
@@ -64,7 +64,7 @@ class Evaluation:
         # Agregar el documento y su relevancia
         self.information_needs[information_need_id].add_document(document_id, relevancy)
 
-    def tp(self, info_id: int, results: Results, k: int = None) -> int:
+    def tp(self, info_id: str, results: Results, k: int = None) -> int:
         tp = 0
         if k is None:
             k = len(results.get_documents_from_infoNeed(info_id))
@@ -73,7 +73,7 @@ class Evaluation:
                 tp += 1
         return tp
 
-    def fp(self, info_id: int, results: Results, k: int = None) -> int:
+    def fp(self, info_id: str, results: Results, k: int = None) -> int:
         fp=0
         if k is None:
             k = len(results.get_documents_from_infoNeed(info_id))
@@ -82,7 +82,7 @@ class Evaluation:
                 fp += 1
         return fp
     
-    def fn(self, info_id: int, results: Results, k: int = None) -> int:
+    def fn(self, info_id: str, results: Results, k: int = None) -> int:
         fn = 0
         if k is None:
             k = len(results.get_documents_from_infoNeed(info_id))
@@ -93,7 +93,7 @@ class Evaluation:
 
 
     
-    def precision(self, info_id: int, results: Results, k: int = None) -> float:
+    def precision(self, info_id: str, results: Results, k: int = None) -> float:
         return self.tp(info_id, results,k)/(self.tp(info_id, results, k)+self.fp(info_id, results, k))
 
     
@@ -115,18 +115,18 @@ class Evaluation:
         # Cálculo del recall
         return relevant_retrieved / len(relevant_docs)
 
-    def f1(self, info_id: int, results: Results) -> float:
+    def f1(self, info_id: str, results: Results) -> float:
         P = self.precision(info_id, results)
         R = self.recall(info_id, results,len(results.get_documents_from_infoNeed(info_id)))
         return (2 * P * R) / (P + R)
     
-    def prec10(self, info_id: int, results: Results) -> float:
+    def prec10(self, info_id: str, results: Results) -> float:
         if len(results.get_documents_from_infoNeed(info_id)) < 10:
             return self.tp(info_id, Results) / 10
         else:
             return self.precision(info_id,results,10)
     
-    def average_precision(self, info_id, results):
+    def average_precision(self, info_id: str, results: Results):
         sum_precisions = 0.0
         relevant_docs = self.information_needs[info_id].get_relevant_documents()
         retrieved_docs = results.get_documents_from_infoNeed(info_id)
@@ -140,7 +140,7 @@ class Evaluation:
         #for index, doc in enumerate(retrieved_docs):
             if doc in relevant_docs:
                 relevant_retrieved_count += 1
-                print(index)
+                #print(index)
                 # Calculamos la precisión hasta este punto
                 #precision_at_k = relevant_retrieved_count / (index + 1)
                 precision_at_k = self.precision(info_id,results,index+1)
@@ -148,7 +148,7 @@ class Evaluation:
         
         return sum_precisions / relevant_retrieved_count
 
-    def recall_precision(self, info_id, results: Results):
+    def recall_precision(self, info_id:str, results: Results):
         precisions = []
         recalls = []
         
@@ -160,7 +160,7 @@ class Evaluation:
                 precision = self.precision(info_id, results, index + 1)
                 recall = self.recall(info_id, results, index + 1)
 
-                print(f"Doc: {doc} | Precision: {precision:.3f} | Recall: {recall:.3f}")
+                #print(f"Doc: {doc} | Precision: {precision:.3f} | Recall: {recall:.3f}")
                 
                 precisions.append(precision)
                 recalls.append(recall)
@@ -168,7 +168,7 @@ class Evaluation:
         return precisions, recalls
 
 
-    def recall_precision_interpolated(self, info_id, results: Results):
+    def recall_precision_interpolated(self, info_id:str, results: Results):
         precisions = []
         recalls = []
          
@@ -185,7 +185,7 @@ class Evaluation:
                 
                 precision_points.append(precision)
                 recall_points.append(recall)
-                print(f"Doc: {doc} | Precision: {precision:.3f} | Recall: {recall:.3f}")
+                #print(f"Doc: {doc} | Precision: {precision:.3f} | Recall: {recall:.3f}")
         
         # Lista de recalls estándar donde interpolaremos las precisiones
         recall_levels = [i / 10.0 for i in range(11)]
@@ -230,9 +230,13 @@ if __name__ == '__main__':
     with open(qrelsFileName, 'r') as Queryfile:
         for line in Queryfile:
             if line.strip():
-                information_need, document_id, relevancy = map(int, line.strip().split('\t'))
-                print(f"Loading judgment: Need ID: {information_need}, Document ID: {document_id}, Relevancy: {relevancy}")
+                information_need, document_id, relevancy = line.strip().split('\t')
+                relevancy = int(relevancy) 
+                #print(f"Loading judgment: Need ID: {information_need}, Document ID: {document_id}, Relevancy: {relevancy}")
                 evaluation.add_judgment(information_need, document_id, relevancy)
+    
+    for key, value in evaluation.information_needs.items():
+        print(f"{key}: {value}")
     
     results = Results()
     with open(resultsFileName, 'r') as Resultsfile:
@@ -240,10 +244,10 @@ if __name__ == '__main__':
             # Saltar líneas en blanco
             if line.strip():
                 # Dividir la línea por tabuladores y convertir a enteros
-                information_need, document_id = map(int, line.strip().split('\t'))
+                information_need, document_id = line.strip().split('\t')
                 # Añadir los datos a la lista
-                print(f"Loading result: Need ID: {information_need}, Document ID: {document_id}")
-                results.add_result(information_need,document_id)
+                #print(f"Loading result: Need ID: {information_need}, Document ID: {document_id}")
+                results.add_result(information_need, document_id)
 
 
     with open(outputFileName, 'w') as Outputfile:
@@ -297,7 +301,7 @@ if __name__ == '__main__':
                 all_interpolated_precisions[i] += precision_value
             
             #interpolated_precisions[count-1]=all_interpolated_precisions.copy()
-            print("a",len(all_interpolated_precisions))
+            #print("a",len(all_interpolated_precisions))
             
             count += 1
 
@@ -325,8 +329,8 @@ if __name__ == '__main__':
     interpolated_precisions[num_queries]=interpolated_avg_precisions.copy()
 
     x = np . linspace (0.0 , 1.0 , 11)
-    print(len(x))
-    print(type(interpolated_precisions))
+    #print(len(x))
+    #print(type(interpolated_precisions))
     fig , ax = plt.subplots ()
     for i in range(0,num_queries):
         ax.plot(x, interpolated_precisions[i], label =f'information need  {i+1}')
