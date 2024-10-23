@@ -51,7 +51,6 @@ class Results:
                 res.append(doc)
         return res
 
-
 class Evaluation:
     def __init__(self):
         # Diccionario que asocia cada necesidad de información con un objeto InformationNeed
@@ -148,20 +147,6 @@ class Evaluation:
                 sum_precisions += precision_at_k
         
         return sum_precisions / relevant_retrieved_count
-    
-        """
-        n_relevant_docs = len(self.information_needs[info_id].get_relevant_documents())
-        #print(n_relevant_docs)
-        if (len(results.get_relevant_documents_from_infoNeed(info_id, self.information_needs[info_id])) == 0):
-            return 0
-        sum = 0
-        for i in range (n_relevant_docs):
-            sum += self.precision(info_id, results, i+1)
-            print(sum)
-        return sum / n_relevant_docs
-        """
-
-
 
     def recall_precision(self, info_id, results: Results):
         precisions = []
