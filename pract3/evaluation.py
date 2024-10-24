@@ -50,6 +50,10 @@ class Results:
             if doc in infoNeed.get_relevant_documents():
                 res.append(doc)
         return res
+    
+    def is_infoNeed_nonempty(self, need_id: str) -> bool:
+        # Return True if the list associated with need_id is not empty, False otherwise
+        return need_id in self.information_needs and len(self.information_needs[need_id]) > 0
 
 class Evaluation:
     def __init__(self):
@@ -94,75 +98,96 @@ class Evaluation:
 
     
     def precision(self, info_id: str, results: Results, k: int = None) -> float:
-        return self.tp(info_id, results,k)/(self.tp(info_id, results, k)+self.fp(info_id, results, k))
+        if results.is_infoNeed_nonempty(info_id):
+            return self.tp(info_id, results,k)/(self.tp(info_id, results, k)+self.fp(info_id, results, k))
+        else:
+            return 0
 
     
     #def recall(self, info_id: int, results: Results, k: int = None) -> float:
        # return self.tp(info_id, results, k)/(self.tp(info_id, results, k)+self.fn(info_id, results, k))
-    def recall(self, info_id, results: Results, at_index) -> float:
-        relevant_docs = self.information_needs[info_id].get_relevant_documents()
-        retrieved_docs = results.get_documents_from_infoNeed(info_id)[:at_index]  # Considerar los primeros 'at_index' documentos
-        
-        relevant_retrieved = 0
-        for doc in retrieved_docs:
-            if doc in relevant_docs:
-                relevant_retrieved += 1  # Cuenta solo los relevantes recuperados hasta aquí
+    def recall(self, info_id, results: Results, at_index = None) -> float:
+        if results.is_infoNeed_nonempty(info_id):
+            if not at_index:
+                at_index = len(results.get_documents_from_infoNeed(infoNeed))
+            relevant_docs = self.information_needs[info_id].get_relevant_documents()
+            retrieved_docs = results.get_documents_from_infoNeed(info_id)[:at_index]  # Considerar los primeros 'at_index' documentos
+            
+            relevant_retrieved = 0
+            for doc in retrieved_docs:
+                if doc in relevant_docs:
+                    relevant_retrieved += 1  # Cuenta solo los relevantes recuperados hasta aquí
 
-        # Evitar la división por cero si no hay documentos relevantes
-        if len(relevant_docs) == 0:
-            return 0.0
-        
-        # Cálculo del recall
-        return relevant_retrieved / len(relevant_docs)
+            # Evitar la división por cero si no hay documentos relevantes
+            if len(relevant_docs) == 0:
+                return 0.0
+            
+            # Cálculo del recall
+            return relevant_retrieved / len(relevant_docs)
+        else:
+            return 0
 
     def f1(self, info_id: str, results: Results) -> float:
-        P = self.precision(info_id, results)
-        R = self.recall(info_id, results,len(results.get_documents_from_infoNeed(info_id)))
-        print(str(P) + "\n")
-        print(str(R) + "\n")
-        return (2 * P * R) / (P + R)
+        if results.is_infoNeed_nonempty(info_id):
+            P = self.precision(info_id, results)
+            R = self.recall(info_id, results,len(results.get_documents_from_infoNeed(info_id)))
+            print(str(P) + "\n")
+            print(str(R) + "\n")
+            return (2 * P * R) / (P + R)
+        else:
+            return 0
     
     def prec10(self, info_id: str, results: Results) -> float:
-        if len(results.get_documents_from_infoNeed(info_id)) < 10:
-            return self.tp(info_id, Results) / 10
+        if results.is_infoNeed_nonempty(info_id):
+            if len(results.get_documents_from_infoNeed(info_id)) < 10:
+                return self.tp(info_id, Results) / 10
+            else:
+                return self.precision(info_id,results,10)
         else:
-            return self.precision(info_id,results,10)
+            return 0
     
     def average_precision(self, info_id: str, results: Results):
-        sum_precisions = 0.0
-        relevant_docs = self.information_needs[info_id].get_relevant_documents()
-        retrieved_docs = results.get_documents_from_infoNeed(info_id)
-        num_relevant = len(relevant_docs)
-        
-        if num_relevant == 0:
-            return 0.0
+        if results.is_infoNeed_nonempty(info_id):
+            sum_precisions = 0.0
+            relevant_docs = self.information_needs[info_id].get_relevant_documents()
+            retrieved_docs = results.get_documents_from_infoNeed(info_id)
+            num_relevant = len(relevant_docs)
+            
+            if num_relevant == 0:
+                return 0.0
 
-        relevant_retrieved_count = 0  # Contador de documentos relevantes recuperados
-        for index, doc in enumerate(retrieved_docs):
-        #for index, doc in enumerate(retrieved_docs):
-            if doc in relevant_docs:
-                relevant_retrieved_count += 1
-                #print(index)
-                # Calculamos la precisión hasta este punto
-                #precision_at_k = relevant_retrieved_count / (index + 1)
-                precision_at_k = self.precision(info_id,results,index+1)
-                sum_precisions += precision_at_k
-        
-        return sum_precisions / relevant_retrieved_count
+            relevant_retrieved_count = 0  # Contador de documentos relevantes recuperados
+            for index, doc in enumerate(retrieved_docs):
+            #for index, doc in enumerate(retrieved_docs):
+                if doc in relevant_docs:
+                    relevant_retrieved_count += 1
+                    #print(index)
+                    # Calculamos la precisión hasta este punto
+                    #precision_at_k = relevant_retrieved_count / (index + 1)
+                    precision_at_k = self.precision(info_id,results,index+1)
+                    sum_precisions += precision_at_k
+            
+            return sum_precisions / relevant_retrieved_count
+        else:
+            return 0
 
-    def recall_precision(self, info_id:str, results: Results):
+    def recall_precision(self, info_id: str, results: Results):
         precisions = []
         recalls = []
-        
-        retrieved_docs = results.get_documents_from_infoNeed(info_id)
-        relevant_docs = self.information_needs[info_id].get_relevant_documents()
 
+        # Get retrieved and relevant documents
+        retrieved_docs = results.get_documents_from_infoNeed(info_id) if results.is_infoNeed_nonempty(info_id) else []
+        relevant_docs = self.information_needs[info_id].get_relevant_documents() if info_id in self.information_needs else []
+
+        # If there are no retrieved or relevant documents, return empty lists
+        if not retrieved_docs or not relevant_docs:
+            return precisions, recalls
+
+        # Calculate precision and recall for relevant documents
         for index, doc in enumerate(retrieved_docs):
             if doc in relevant_docs:
                 precision = self.precision(info_id, results, index + 1)
                 recall = self.recall(info_id, results, index + 1)
-
-                #print(f"Doc: {doc} | Precision: {precision:.3f} | Recall: {recall:.3f}")
                 
                 precisions.append(precision)
                 recalls.append(recall)
@@ -170,16 +195,20 @@ class Evaluation:
         return precisions, recalls
 
 
-    def recall_precision_interpolated(self, info_id:str, results: Results):
-        precisions = []
-        recalls = []
-         
-        relevant_docs = self.information_needs[info_id].get_relevant_documents()
-        retrieved_docs = results.get_documents_from_infoNeed(info_id)
-        
+
+    def recall_precision_interpolated(self, info_id: str, results: Results): 
         precision_points = []
         recall_points = []
         
+        # Get retrieved and relevant documents
+        retrieved_docs = results.get_documents_from_infoNeed(info_id) if results.is_infoNeed_nonempty(info_id) else []
+        relevant_docs = self.information_needs[info_id].get_relevant_documents()
+
+        # If no relevant or retrieved documents, return recall levels with zero precisions
+        if not retrieved_docs or not relevant_docs:
+            return [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], [0.0] * 11
+
+        # Calculate precision and recall for each retrieved document
         for index, doc in enumerate(retrieved_docs):
             if doc in relevant_docs:
                 precision = self.precision(info_id, results, index + 1) 
@@ -187,25 +216,23 @@ class Evaluation:
                 
                 precision_points.append(precision)
                 recall_points.append(recall)
-                #print(f"Doc: {doc} | Precision: {precision:.3f} | Recall: {recall:.3f}")
         
-        # Lista de recalls estándar donde interpolaremos las precisiones
+        # Standard recall levels for interpolation
         recall_levels = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
         
-        # Aplicamos la interpolación de precisión para cada nivel de recall estándar
+        # Interpolate precision for each recall level
         interpolated_precisions = []
         
         for recall_level in recall_levels:
-            # Encontrar la máxima precisión para el recall >= recall_level
             max_precision = 0.0
             for r, p in zip(recall_points, precision_points):
                 if r >= recall_level:
                     max_precision = max(max_precision, p)
             interpolated_precisions.append(max_precision)
 
-        
         return recall_levels, interpolated_precisions
-    
+
+        
 
 if __name__ == '__main__':
     i = 1
@@ -231,9 +258,6 @@ if __name__ == '__main__':
                 relevancy = int(relevancy) 
                 #print(f"Loading judgment: Need ID: {information_need}, Document ID: {document_id}, Relevancy: {relevancy}")
                 evaluation.add_judgment(information_need, document_id, relevancy)
-    
-    for key, value in evaluation.information_needs.items():
-        print(f"{key}: {value}")
     
     results = Results()
     processed_queries = {}
@@ -271,8 +295,12 @@ if __name__ == '__main__':
             Outputfile.write(f"INFORMATION_NEED {count}\n")
             
             precision = evaluation.precision(infoNeed, results)
-            recall = evaluation.recall(infoNeed, results, len(results.get_documents_from_infoNeed(infoNeed)))
-            f1 = (2.0*precision*recall)/(precision+recall)
+            recall = evaluation.recall(infoNeed, results)
+            if precision + recall > 0:
+                f1 = (2.0 * precision * recall) / (precision + recall)
+            else:
+                f1 = 0.0
+
             prec_at_10 = evaluation.prec10(infoNeed, results)
             average_precision = evaluation.average_precision(infoNeed, results)
             
