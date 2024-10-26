@@ -3,8 +3,7 @@ RECUPERACIÓN DE INFORMACIÓN:PRACTICA 1
 search.py
 Authors: Carlos Giralt and Berta Olano
 
-Program to search a free text query on a previously created inverted index.
-This program is based on the whoosh library. See https://pypi.org/project/Whoosh/ .
+Program to evaluate information retrieval systems given relevance judgements
 Usage: python3 evaluation.py -qrels <qrelsFileName> -results <resultsFileName> -output <outputFileName>
 
 """
@@ -19,31 +18,42 @@ class InformationNeed:
         # Diccionario que asocia el documento con su relevancia (0 o 1)
         self.documents = {}
 
+    # Método para añadir un documento a la colección junto con su relevancia
     def add_document(self, doc_id, relevancy):
         self.documents[doc_id] = relevancy
 
+     # Método que filtra y devuelve solo los documentos relevantes
     def get_relevant_documents(self):
-        # Filtra y devuelve solo los documentos relevantes
         return list({doc_id: rel for doc_id, rel in self.documents.items() if rel == 1})
     
+    # Método que devuelve todos los documentos (relevantes o no) asociados a una necesidad 
+    # de información
     def get_documents(self):
-       # return {self.documents.keys()}
         return list(self.documents.keys())
 
 class Results:
     def __init__(self):
+        # Diccionario que asocia cada necesidad de información con una lista de los
+        # documentos recuperados para ella.
         self.information_needs = {}
     
+    # Método que dado el identificador de una necesidad de información y el de un documento, 
+    # añade a la lista de documentos recuperados para dicha necesidad de información el 
+    # documento proporcionado. Si no hay ninguna entrada en el diccionario que coincida 
+    # con el identificador de la necesidad de información proporcionado, lo añade.
     def add_result(self, need_id, doc_id):
         if need_id not in self.information_needs:
             self.information_needs[need_id] = []
             
         self.information_needs[need_id].append(doc_id)
     
+    # Método que devuelve una lista con todos los documentos recuperados (relevantes o no)
+    # para la necesidad de información proporcionada.
     def get_documents_from_infoNeed(self, need_id):
         return list(self.information_needs[need_id])
-        #return list(self.relevant_documents.keys())
     
+    # Método que devuelve una lista con todos los documentos recuperados relevantes
+    # para la necesidad de información proporcionada.
     def get_relevant_documents_from_infoNeed(self, need_id: str, infoNeed: InformationNeed):
         res = []
         for doc in self.get_documents_from_infoNeed(need_id):
@@ -51,6 +61,8 @@ class Results:
                 res.append(doc)
         return res
     
+    # Método que devuelve True si y sólo si hay documentos recuperados para la
+    # necesidad de información proporcionada
     def is_infoNeed_nonempty(self, need_id: str) -> bool:
         # Return True if the list associated with need_id is not empty, False otherwise
         return need_id in self.information_needs and len(self.information_needs[need_id]) > 0
@@ -60,6 +72,8 @@ class Evaluation:
         # Diccionario que asocia cada necesidad de información con un objeto InformationNeed
         self.information_needs = {}
 
+    # Método para añadir un juicio de relevancia a una necesidad de información, dado su ID,
+    # el del documento y la relevancia del mismo
     def add_judgment(self, information_need_id, document_id, relevancy):
         # Si la necesidad de información no existe, crearla
         if information_need_id not in self.information_needs:
@@ -68,6 +82,9 @@ class Evaluation:
         # Agregar el documento y su relevancia
         self.information_needs[information_need_id].add_document(document_id, relevancy)
 
+    # Método que, dado el ID de una necesidad de información, devuelve el número de true positives
+    # en los resultados obtenidos por un sistema de recuperación de información, considerando
+    # hasta el k-ésimo documento recuperado por él.
     def tp(self, info_id: str, results: Results, k: int = None) -> int:
         tp = 0
         if k is None:
@@ -77,6 +94,9 @@ class Evaluation:
                 tp += 1
         return tp
 
+    # Método que, dado el ID de una necesidad de información, devuelve el número de false positives
+    # en los resultados obtenidos por un sistema de recuperación de información, considerando
+    # hasta el k-ésimo documento recuperado por él.
     def fp(self, info_id: str, results: Results, k: int = None) -> int:
         fp=0
         if k is None:
@@ -86,6 +106,9 @@ class Evaluation:
                 fp += 1
         return fp
     
+    # Método que, dado el ID de una necesidad de información, devuelve el número de false negatives
+    # en los resultados obtenidos por un sistema de recuperación de información, considerando
+    # hasta el k-ésimo documento recuperado por él.
     def fn(self, info_id: str, results: Results, k: int = None) -> int:
         fn = 0
         if k is None:
@@ -96,7 +119,8 @@ class Evaluation:
         return fn
 
 
-    
+    # Método que, dado el ID de una necesidad de información, devuelve la métrica de precisión obtenida
+    # por un sistema de recuperación de información, considerando hasta el k-ésimo documento recuperado por él.
     def precision(self, info_id: str, results: Results, k: int = None) -> float:
         if results.is_infoNeed_nonempty(info_id):
             return self.tp(info_id, results,k)/(self.tp(info_id, results, k)+self.fp(info_id, results, k))
@@ -104,8 +128,8 @@ class Evaluation:
             return 0
 
     
-    #def recall(self, info_id: int, results: Results, k: int = None) -> float:
-       # return self.tp(info_id, results, k)/(self.tp(info_id, results, k)+self.fn(info_id, results, k))
+    # Método que, dado el ID de una necesidad de información, devuelve la métrica de "recall" obtenida
+    # por un sistema de recuperación de información, considerando hasta el k-ésimo documento recuperado por él.
     def recall(self, info_id, results: Results, at_index = None) -> float:
         if results.is_infoNeed_nonempty(info_id):
             if not at_index:
@@ -127,6 +151,8 @@ class Evaluation:
         else:
             return 0
 
+    # Método que, dado el ID de una necesidad de información, devuelve la métrica de evaluación de sistemas "F1" obtenida
+    # por un sistema de recuperación de información.
     def f1(self, info_id: str, results: Results) -> float:
         if results.is_infoNeed_nonempty(info_id):
             P = self.precision(info_id, results)
@@ -137,6 +163,8 @@ class Evaluation:
         else:
             return 0
     
+    # Método que, dado el ID de una necesidad de información, devuelve la métrica de evaluación de sistemas "precisión a 10" 
+    # obtenida por un sistema de recuperación de información.
     def prec10(self, info_id: str, results: Results) -> float:
         if results.is_infoNeed_nonempty(info_id):
             if len(results.get_documents_from_infoNeed(info_id)) < 10:
@@ -145,7 +173,9 @@ class Evaluation:
                 return self.precision(info_id,results,10)
         else:
             return 0
-    
+
+    # Método que, dado el ID de una necesidad de información, devuelve la métrica de evaluación de sistemas "precisión promedio" 
+    # obtenida por un sistema de recuperación de información.
     def average_precision(self, info_id: str, results: Results):
         if results.is_infoNeed_nonempty(info_id):
             sum_precisions = 0.0
@@ -171,6 +201,8 @@ class Evaluation:
         else:
             return 0
 
+    # Método que, dado el ID de una necesidad de información, devuelve los puntos exhaustividad-precisión
+    # que permitirían generar la curva de precisión-exhaustividad.
     def recall_precision(self, info_id: str, results: Results):
         precisions = []
         recalls = []
@@ -195,7 +227,8 @@ class Evaluation:
         return precisions, recalls
 
 
-
+    # Método que, dado el ID de una necesidad de información, devuelve los puntos exhaustividad-precisión
+    # interpolados que permitirían generar la curva de precisión-exhaustividad interpolada.
     def recall_precision_interpolated(self, info_id: str, results: Results): 
         precision_points = []
         recall_points = []
@@ -238,14 +271,14 @@ if __name__ == '__main__':
     i = 1
     infor=False
     while (i < len(sys.argv)):
-        if sys.argv[i] == '-qrels': #guarda el indice donde va a hacer la búsqueda
+        if sys.argv[i] == '-qrels':
             qrelsFileName = sys.argv[i+1]
             i = i + 1
         if sys.argv[i] == '-results':
-            resultsFileName = sys.argv[i+1]   #guarda el fichero que contiene las consultas
+            resultsFileName = sys.argv[i+1]  
             i += 1
         if sys.argv[i] == '-output':
-            outputFileName = sys.argv[i+1] #guarda el fichero de resultados
+            outputFileName = sys.argv[i+1] 
             i += 1
         i = i + 1
 
@@ -256,7 +289,7 @@ if __name__ == '__main__':
             if line.strip():
                 information_need, document_id, relevancy = line.strip().split('\t')
                 relevancy = int(relevancy) 
-                #print(f"Loading judgment: Need ID: {information_need}, Document ID: {document_id}, Relevancy: {relevancy}")
+                print(f"Loading judgment: Need ID: {information_need}, Document ID: {document_id}, Relevancy: {relevancy}")
                 evaluation.add_judgment(information_need, document_id, relevancy)
     
     results = Results()
@@ -264,16 +297,15 @@ if __name__ == '__main__':
 
     with open(resultsFileName, 'r') as Resultsfile:
         for line in Resultsfile:
-            # Skip empty lines
             if line.strip():
-                # Split the line by tabs to extract information_need and document_id
+                
                 information_need, document_id = line.strip().split('\t')
                 
-                # Initialize the counter for this information_need if it doesn't exist
+                
                 if information_need not in processed_queries:
                     processed_queries[information_need] = 0
                 
-                # Only process the first 45 lines for each information_need
+                
                 if processed_queries[information_need] < 45:
                     results.add_result(information_need, document_id)
                     processed_queries[information_need] += 1
@@ -329,13 +361,11 @@ if __name__ == '__main__':
             for recall_value, precision_value in zip(interpolated_recalls, interpolated_precisions[count-1]):
                 Outputfile.write(f"{recall_value:.3f} {precision_value:.3f}\n")
             
+            Outputfile.write(f"\n")
+            
             # Acumulamos las interpolaciones
             for i, precision_value in enumerate(interpolated_precisions[count-1]):
                 all_interpolated_precisions[i] += precision_value
-            
-            #interpolated_precisions[count-1]=all_interpolated_precisions.copy()
-            #print("a",len(all_interpolated_precisions))
-            
             count += 1
 
         # Calculamos las métricas totales
@@ -362,8 +392,6 @@ if __name__ == '__main__':
     interpolated_precisions[num_queries]=interpolated_avg_precisions.copy()
 
     x = np . linspace (0.0 , 1.0 , 11)
-    #print(len(x))
-    #print(type(interpolated_precisions))
     fig , ax = plt.subplots ()
     for i in range(0,num_queries):
         ax.plot(x, interpolated_precisions[i], label =f'information need  {i+1}')
