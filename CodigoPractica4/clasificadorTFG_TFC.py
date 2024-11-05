@@ -1,4 +1,5 @@
 #Metodos de carga y procesamiento de datos usados en el resto de ejercicios de la práctica
+import unicodedata
 import pandas as pd, re, numpy as np, os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from keras.preprocessing.text import Tokenizer
@@ -75,6 +76,23 @@ categorias = {
     'c7': otros_keywords                          # Otros
 }
 
+def limpiar_texto(texto):
+    if texto is None:
+        return ''
+
+    # Normalizar texto a Unicode NFKD para manejar caracteres especiales
+    texto = unicodedata.normalize('NFKD', texto)
+    
+    # Filtrar caracteres no ASCII o no imprimibles
+    texto = ''.join(c for c in texto if unicodedata.category(c)[0] != 'C' and c.isprintable())
+    
+    # Reemplazar cualquier secuencia de caracteres que no sea alfanumérica o espacios por un espacio
+    texto = re.sub(r'[^a-zA-Z0-9\s]', ' ', texto)
+    
+    # Remover múltiples espacios y hacer strip para quitar espacios al inicio y final
+    texto = re.sub(r'\s+', ' ', texto).strip()
+    
+    return texto
 
 # Método para leer los ficheros tabulares del ejercicio de clasificación de texto (clasificación, título y descripción)
 # Lee un fichero en un dataframe de Pandas y junta el título con la descripción
@@ -124,7 +142,7 @@ def escribe(file,OutputFile):
             categoria = determinar_categoria(subject_text)
             #with open(OutputFile, 'a', encoding='utf-8') as f:
             # Escribir en el archivo de salida
-            OutputFile.write(title.text+'\t;'+description.text+'\t;'+categoria+'\n') 
+            OutputFile.write(limpiar_texto(title.text)+'\t;'+limpiar_texto(description.text)+'\t;'+categoria+'\n') 
         
 
 
@@ -142,7 +160,7 @@ def crearArchivoEntrenamiento(FolderName,OutputFile):
     # Asegurarse de que el archivo de salida existe
     if not os.path.exists(OutputFile):
         with open(OutputFile, 'w', encoding='utf-8') as file:  # Crea el archivo si no existe
-            file.write('Title,Description,Class Index\n')
+            file.write('Title\t;Description\t;Class Index\n')
 
     # Escribir los resultados en el archivo de salida
    # with open(OutputFile, 'a', encoding='utf-8') as file:  # Abre en modo de agregar
@@ -240,7 +258,7 @@ if __name__ == '__main__':
         if sys.argv[i] == '-output' and i + 1 < len(sys.argv):
             OutputFile = sys.argv[i + 1]
 
-    #crearArchivoEntrenamiento(FolderName,OutputFile)
+    crearArchivoEntrenamiento(FolderName,OutputFile)
     X_entren, y_entren, X_test, y_test, tamVoc = lecturaDatosEntrenamientoYTestClasificador()
     model=createModel(tamVoc,len(X_entren[0]),  50)
     history = model.fit(X_entren, y_entren, epochs=10, validation_steps=10, batch_size=64 , verbose=0)
